@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CardUP — panoul administratorului</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="config.js"></script>
+<script src="shared.js"></script>
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <div class="brand"><picture><source srcset="logo-upsc-white.png" media="(prefers-color-scheme: dark)"><img src="logo-upsc-navy.png" alt="Universitatea Pedagogică de Stat „Ion Creangă” din Chișinău"></picture><span class="sep" aria-hidden="true"></span><span>Card<b>UP</b><small>administrare</small></span></div>
+  <div class="acts"><span class="small-muted" id="who"></span><button class="btn ghost" id="logout" type="button" hidden>Ieșire</button></div>
+</div></div>
+
+<div id="v-auth" hidden><div class="auth">
+  <div class="auth-logo"><picture><source srcset="logo-upsc-white.png" media="(prefers-color-scheme: dark)"><img src="logo-upsc-navy.png" alt="Universitatea Pedagogică de Stat „Ion Creangă” din Chișinău"></picture></div>
+  <h1>Panoul administratorului</h1>
+  <p class="lede">Acces doar pentru angajații Direcției Studenți și Servicii Sociale.</p>
+  <div class="panel">
+    <p class="msg" id="auth-msg" hidden></p>
+    <form id="f-in">
+      <div class="field"><label for="in-email">Email</label><input id="in-email" type="email" required autocomplete="email"></div>
+      <div class="field"><label for="in-pass">Parola</label><input id="in-pass" type="password" required autocomplete="current-password"></div>
+      <button class="btn big" type="submit">Intră</button>
+    </form>
+  </div>
+</div></div>
+
+<div id="v-denied" hidden><div class="auth"><div class="panel">
+  <h2>Nu ai acces la panou</h2>
+  <p>Contul tău este de student. Un administrator îți poate acorda rolul de angajat din secțiunea „Studenți”.</p>
+  <a class="btn" href="index.html" style="display:inline-block;text-decoration:none">Deschide aplicația studentului</a>
+</div></div></div>
+
+<div id="v-app" hidden><div class="admin"><div class="wrap">
+  <div class="admin-head"><h1>Panoul administratorului</h1><p>Direcția Studenți și Servicii Sociale, UPS „Ion Creangă”</p></div>
+  <div class="stats" id="stats"></div>
+  <div class="atabs chips" id="atabs"></div>
+
+  <!-- Scanare -->
+  <div data-pane="scan">
+    <div class="two">
+      <div class="panel">
+        <h2 class="ph">Scanează</h2>
+        <div class="field"><label for="ev-pick">Evenimentul pentru care acorzi puncte</label><select id="ev-pick"></select>
+          <p class="small-muted" style="margin:6px 0 0">Folosit doar când scanezi cardul unui student. Codurile de premiu (R-…) sunt recunoscute automat.</p></div>
+        <div id="reader"></div>
+        <div class="res-acts" style="margin:12px 0 18px">
+          <button class="btn" type="button" id="cam-on">Pornește camera</button>
+          <button class="btn ghost" type="button" id="cam-off" hidden>Oprește camera</button>
+        </div>
+        <label class="lbl" for="code" style="display:block;font-weight:600;font-size:15px;margin-bottom:6px">Sau introdu codul manual</label>
+        <div class="code-in"><input id="code" placeholder="UPSC-123456 sau R-ABC123" maxlength="12" autocomplete="off"><button class="btn" id="code-go" type="button">Verifică</button></div>
+      </div>
+      <div id="result"><div class="empty">Scanează cardul unui student ca să-i acorzi puncte, sau codul de ridicare ca să predai un premiu.</div></div>
+    </div>
+  </div>
+
+  <!-- Evenimente -->
+  <div data-pane="events" hidden><div class="two">
+    <form class="panel" id="ev-form" novalidate>
+      <h2 class="ph" id="ev-form-title">Adaugă un eveniment</h2>
+      <div class="field"><label for="ev-title">Denumirea</label><input id="ev-title" maxlength="120"></div>
+      <div class="row"><div class="field"><label for="ev-cat">Categoria</label><select id="ev-cat"></select></div><div class="field"><label for="ev-pts">Puncte</label><input id="ev-pts" type="number" min="1" max="1000" value="20"></div></div>
+      <div class="row"><div class="field"><label for="ev-date">Data</label><input id="ev-date" type="date"></div><div class="field"><label for="ev-lvl">Nivel minim</label><select id="ev-lvl"></select></div></div>
+      <div class="field"><label for="ev-place">Locul</label><input id="ev-place" maxlength="120"></div>
+      <div class="field"><label for="ev-desc">Descrierea</label><textarea id="ev-desc" maxlength="500"></textarea></div>
+      <div class="field"><label for="ev-img">Fotografie</label><input id="ev-img" type="file" accept="image/*"><div class="photo-prev" id="ev-prev">Fără fotografie</div></div>
+      <p class="msg bad" id="ev-err" hidden></p>
+      <button class="btn big" type="submit" id="ev-submit">Publică evenimentul</button>
+      <p style="margin:10px 0 0"><button class="linkbtn" type="button" id="ev-cancel" hidden>Renunță la editare</button></p>
+    </form>
+    <div class="list" id="ev-list"></div>
+  </div></div>
+
+  <!-- Premii -->
+  <div data-pane="rewards" hidden><div class="two">
+    <form class="panel" id="rw-form" novalidate>
+      <h2 class="ph" id="rw-form-title">Adaugă un premiu</h2>
+      <div class="field"><label for="rw-title">Denumirea</label><input id="rw-title" maxlength="120"></div>
+      <div class="row"><div class="field"><label for="rw-type">Tipul</label><select id="rw-type"><option>Produse UPSC</option><option>Oportunități</option></select></div><div class="field"><label for="rw-lvl">Nivel minim</label><select id="rw-lvl"></select></div></div>
+      <div class="row"><div class="field"><label for="rw-cost">Cost în puncte</label><input id="rw-cost" type="number" min="1" max="10000" value="50"></div><div class="field"><label for="rw-stock">Stoc</label><input id="rw-stock" type="number" min="0" max="99999" value="20"></div></div>
+      <div class="field"><label for="rw-desc">Descrierea</label><textarea id="rw-desc" maxlength="500"></textarea></div>
+      <div class="field"><label for="rw-img">Fotografie</label><input id="rw-img" type="file" accept="image/*"><div class="photo-prev" id="rw-prev">Fără fotografie</div></div>
+      <p class="msg bad" id="rw-err" hidden></p>
+      <button class="btn big" type="submit" id="rw-submit">Adaugă premiul</button>
+      <p style="margin:10px 0 0"><button class="linkbtn" type="button" id="rw-cancel" hidden>Renunță la editare</button></p>
+    </form>
+    <div class="list" id="rw-list"></div>
+  </div></div>
+
+  <!-- Studenți -->
+  <div data-pane="students" hidden>
+    <div class="toolbar"><input type="search" id="st-q" placeholder="Caută după nume, card sau facultate"></div>
+    <div class="tablewrap"><table><thead><tr><th>Student</th><th>Card</th><th>Facultatea, anul</th><th>Câștigate</th><th>Valorificate</th><th>Sold</th><th>Premii</th><th>Rol</th><th></th></tr></thead><tbody id="st-body"></tbody></table></div>
+  </div>
+
+  <!-- Registru -->
+  <div data-pane="log" hidden>
+    <div class="toolbar">
+      <input type="search" id="lg-q" placeholder="Caută student, card, premiu, cod sau operator">
+      <select id="lg-type"><option value="all">Toate operațiunile</option><option value="earn">Puncte acordate</option><option value="used">Premii ridicate</option><option value="pending">Coduri neridicate</option><option value="cancelled">Coduri anulate</option></select>
+      <label class="small-muted">De la <input type="date" id="lg-from"></label>
+      <label class="small-muted">Până la <input type="date" id="lg-to"></label>
+      <button class="btn ghost" type="button" id="lg-csv">Exportă în Excel (CSV)</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Data și ora</th><th>Student</th><th>Card</th><th>Facultatea</th><th>Operațiunea</th><th>Detalii</th><th>Puncte</th><th>Operator</th></tr></thead><tbody id="lg-body"></tbody></table></div>
+    <p class="small-muted" id="lg-count" style="margin-top:10px"></p>
+  </div>
+</div></div></div>
+
+<script>
+(function(){
+if(!window.CU)return;
+const {sb,LEVELS,CATS,esc,puncte,levelOf,fmt,fmtDate,fullName,initials,toast,errMsg,resizeImage,imgUrl}=CU;
+const $=id=>document.getElementById(id);
+let me=null,events=[],rewards=[],students=[],registry=[],tab="scan",scanner=null,busy=false;
+
+/* ---------- Acces ---------- */
+function show(v){["auth","denied","app"].forEach(k=>$("v-"+k).hidden=k!==v);$("logout").hidden=v==="auth"}
+$("f-in").onsubmit=async e=>{e.preventDefault();const m=$("auth-msg");m.hidden=true;
+  const {error}=await sb.auth.signInWithPassword({email:$("in-email").value.trim(),password:$("in-pass").value});
+  if(error){m.textContent=errMsg(error);m.className="msg bad";m.hidden=false}};
+$("logout").onclick=()=>sb.auth.signOut();
+sb.auth.onAuthStateChange((ev,s)=>{if(ev==="SIGNED_OUT"){me=null;stopCam();$("who").textContent="";show("auth")}else if(ev==="SIGNED_IN"&&s&&(!me||me.id!==s.user.id))boot(s.user)});
+(async()=>{const {data}=await sb.auth.getSession();if(me)return;data.session?boot(data.session.user):show("auth")})();
+
+async function boot(u){
+  const {data,error}=await sb.from("profiles").select("*").eq("id",u.id).single();
+  if(error){toast(errMsg(error));show("auth");return}
+  me=data;$("who").textContent=fullName(me);
+  if(!["staff","admin"].includes(me.role)){show("denied");return}
+  show("app");setupForms();await refresh();
+}
+async function refresh(){await Promise.all([loadEvents(),loadRewards(),loadStudents(),loadRegistry()]);renderAll()}
+async function loadEvents(){const r=await sb.from("events").select("*").order("created_at",{ascending:false});if(r.error)return toast(errMsg(r.error));events=r.data}
+async function loadRewards(){const r=await sb.from("rewards").select("*").order("created_at",{ascending:false});if(r.error)return toast(errMsg(r.error));rewards=r.data}
+async function loadStudents(){const r=await sb.from("student_overview").select("*").order("last_name").limit(5000);if(r.error)return toast(errMsg(r.error));students=r.data}
+async function loadRegistry(){
+  let q=sb.from("registry").select("*").order("created_at",{ascending:false}).limit(3000);
+  if($("lg-from").value)q=q.gte("created_at",$("lg-from").value+"T00:00:00");
+  if($("lg-to").value)q=q.lte("created_at",$("lg-to").value+"T23:59:59");
+  const r=await q;if(r.error)return toast(errMsg(r.error));registry=r.data;
+}
+
+/* ---------- Afișare generală ---------- */
+const TABS=[["scan","Scanare"],["events","Evenimente"],["rewards","Premii"],["students","Studenți"],["log","Registru"]];
+function renderAll(){
+  const earned=students.reduce((a,s)=>a+s.earned,0),spent=students.reduce((a,s)=>a+s.spent,0),taken=students.reduce((a,s)=>a+s.rewards_taken,0);
+  $("stats").innerHTML=`<div class="stat"><b>${students.filter(s=>s.role==="student").length}</b><span>studenți cu card</span></div><div class="stat"><b>${earned}</b><span>puncte acordate</span></div><div class="stat"><b>${spent}</b><span>puncte valorificate</span></div><div class="stat"><b>${taken}</b><span>premii predate</span></div>`;
+  const t=$("atabs");t.innerHTML="";TABS.forEach(([k,l])=>{const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=l;b.setAttribute("aria-pressed",tab===k);b.onclick=()=>{tab=k;if(k!=="scan")stopCam();renderAll()};t.appendChild(b)});
+  document.querySelectorAll("[data-pane]").forEach(p=>p.hidden=p.dataset.pane!==tab);
+  renderEvPick();renderEvList();renderRwList();renderStudents();renderLog();
+}
+
+/* ---------- Scanare ---------- */
+function renderEvPick(){const s=$("ev-pick"),keep=s.value;const act=events.filter(e=>e.active);
+  s.innerHTML=act.length?act.map(e=>`<option value="${e.id}">${esc(e.title)} (+${e.points})</option>`).join(""):'<option value="">Niciun eveniment activ</option>';if(keep&&act.some(e=>e.id===keep))s.value=keep}
+$("cam-on").onclick=async()=>{
+  if(!window.Html5Qrcode){toast("Biblioteca pentru cameră nu s-a încărcat.");return}
+  try{scanner=scanner||new Html5Qrcode("reader");
+    await scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:230,height:230}},onDecode,()=>{});
+    $("cam-on").hidden=true;$("cam-off").hidden=false;busy=false;
+  }catch(e){toast("Camera nu a putut porni. Permite accesul la cameră în browser (pagina trebuie să fie pe HTTPS).")}
+};
+$("cam-off").onclick=stopCam;
+async function stopCam(){if(scanner&&scanner.isScanning){try{await scanner.stop()}catch(e){}}$("cam-on").hidden=false;$("cam-off").hidden=true}
+function onDecode(text){if(busy)return;busy=true;try{scanner.pause(true)}catch(e){}handle(text)}
+function resume(){busy=false;if(scanner&&scanner.isScanning){try{scanner.resume()}catch(e){}}}
+$("code-go").onclick=()=>handle($("code").value);
+$("code").onkeydown=e=>{if(e.key==="Enter")handle($("code").value)};
+
+function who(p){return `<div class="who"><div class="avatar">${esc(initials(p))}</div><div><strong>${esc(fullName(p))}</strong><span>${esc([p.card_no,p.faculty,p.study_year].filter(Boolean).join(", "))}</span></div></div>`}
+function result(cls,html){$("result").innerHTML=`<div class="result ${cls}">${html}</div>`;const n=$("r-next");if(n)n.onclick=()=>{$("result").innerHTML='<div class="empty">Gata pentru următoarea scanare.</div>';$("code").value="";resume()}}
+const NEXT='<button class="btn ghost" type="button" id="r-next">Scanează următorul</button>';
+
+async function handle(raw){
+  const code=(raw||"").trim().toUpperCase();
+  if(!code){toast("Introdu un cod.");busy=false;return}
+  if(code.startsWith("R-"))return voucher(code);
+  if(code.startsWith("UPSC-"))return card(code);
+  result("badr",`<p class="msg-bad">Codul „${esc(code)}” nu este un card CardUP și nici un cod de premiu.</p><div class="res-acts">${NEXT}</div>`);
+}
+async function voucher(code){
+  const {data,error}=await sb.rpc("lookup_code",{p_code:code});
+  if(error)return result("badr",`<p class="msg-bad">${esc(errMsg(error))}</p><div class="res-acts">${NEXT}</div>`);
+  if(!data)return result("badr",`<p class="msg-bad">Codul ${esc(code)} nu există.</p><div class="res-acts">${NEXT}</div>`);
+  const s=data.student;
+  if(data.status==="used")return result("badr",`${who(s)}<p class="msg-bad">Codul a fost deja folosit.</p><dl class="kv"><dt>Premiu</dt><dd>${esc(data.title)}</dd><dt>Ridicat la</dt><dd>${fmt(data.used_at)}</dd><dt>Operator</dt><dd>${esc(data.operator||"–")}</dd></dl><div class="res-acts">${NEXT}</div>`);
+  if(data.status==="cancelled")return result("badr",`${who(s)}<p class="msg-bad">Codul a fost anulat.</p><div class="res-acts">${NEXT}</div>`);
+  result("good",`${who(s)}<p class="msg-ok">Cod valid. Premiul poate fi predat.</p><dl class="kv"><dt>Premiu</dt><dd>${esc(data.title)}</dd><dt>Puncte de retras</dt><dd>${puncte(data.points)}</dd><dt>Sold după predare</dt><dd>${puncte(data.balance)}</dd><dt>Cod generat la</dt><dd>${fmt(data.created_at)}</dd></dl><div class="res-acts"><button class="btn" type="button" id="r-ok">Confirmă predarea</button>${NEXT.replace("Scanează următorul","Renunță")}</div>`);
+  $("r-ok").onclick=async()=>{$("r-ok").disabled=true;
+    const r=await sb.rpc("confirm_redeem",{p_code:code});
+    if(r.error){toast(errMsg(r.error));$("r-ok").disabled=false;return}
+    result("good",`${who(s)}<p class="msg-ok">Predat. Punctele au fost retrase și operațiunea e în registru.</p><dl class="kv"><dt>Premiu</dt><dd>${esc(data.title)}</dd><dt>Puncte retrase</dt><dd>${puncte(data.points)}</dd><dt>Data</dt><dd>${fmt(r.data.used_at)}</dd><dt>Operator</dt><dd>${esc(fullName(me))}</dd></dl><div class="res-acts">${NEXT}</div>`);
+    toast(fullName(s)+": "+data.title+" predat");refresh();
+  };
+}
+async function card(code){
+  const evId=$("ev-pick").value,ev=events.find(e=>e.id===evId);
+  const {data,error}=await sb.rpc("lookup_card",{p_card:code});
+  if(error)return result("badr",`<p class="msg-bad">${esc(errMsg(error))}</p><div class="res-acts">${NEXT}</div>`);
+  if(!data)return result("badr",`<p class="msg-bad">Cardul ${esc(code)} nu există.</p><div class="res-acts">${NEXT}</div>`);
+  const s=data.student,info=`<dl class="kv"><dt>Nivel</dt><dd>${LEVELS[data.level].name}</dd><dt>Sold</dt><dd>${puncte(data.balance)}</dd><dt>Câștigate în total</dt><dd>${puncte(data.earned)}</dd></dl>`;
+  if(!ev)return result("badr",`${who(s)}${info}<p class="msg-bad">Alege mai întâi evenimentul din listă.</p><div class="res-acts">${NEXT}</div>`);
+  if((data.events_done||[]).includes(ev.id))return result("badr",`${who(s)}<p class="msg-bad">A primit deja punctele pentru „${esc(ev.title)}”.</p>${info}<div class="res-acts">${NEXT}</div>`);
+  result("good",`${who(s)}${info}<p class="msg-ok">Acorzi +${puncte(ev.points)} pentru „${esc(ev.title)}”.</p><div class="res-acts"><button class="btn" type="button" id="r-ok">Acordă punctele</button>${NEXT.replace("Scanează următorul","Renunță")}</div>`);
+  $("r-ok").onclick=async()=>{$("r-ok").disabled=true;
+    const r=await sb.rpc("award_points",{p_card:code,p_event:ev.id});
+    if(r.error){toast(errMsg(r.error));$("r-ok").disabled=false;return}
+    result("good",`${who(s)}<p class="msg-ok">+${puncte(ev.points)} acordate pentru „${esc(ev.title)}”. Sold nou: ${puncte(data.balance+ev.points)}.</p><div class="res-acts">${NEXT}</div>`);
+    toast(fullName(s)+": +"+ev.points);refresh();
+  };
+}
+
+/* ---------- Evenimente și premii ---------- */
+let evEdit=null,rwEdit=null,evFile=null,rwFile=null;
+function lvlOpts(sel){sel.innerHTML=LEVELS.map((l,i)=>`<option value="${i}">${l.name}</option>`).join("")}
+let formsReady=false;
+function setupForms(){if(formsReady)return;formsReady=true;
+  lvlOpts($("ev-lvl"));lvlOpts($("rw-lvl"));$("ev-cat").innerHTML=CATS.map(c=>`<option>${c}</option>`).join("");
+  $("ev-img").onchange=e=>{evFile=e.target.files[0]||null;preview("ev-prev",evFile)};
+  $("rw-img").onchange=e=>{rwFile=e.target.files[0]||null;preview("rw-prev",rwFile)};
+  $("ev-form").onsubmit=saveEvent;$("rw-form").onsubmit=saveReward;
+  $("ev-cancel").onclick=resetEv;$("rw-cancel").onclick=resetRw;
+}
+function preview(id,file,url){const p=$(id);if(file){const u=URL.createObjectURL(file);p.innerHTML=`<img alt="Previzualizare" src="${u}">`}else if(url){p.innerHTML=`<img alt="" src="${esc(url)}">`}else p.textContent="Fără fotografie"}
+async function upload(file,folder){const blob=await resizeImage(file);const path=`${folder}/${crypto.randomUUID()}.jpg`;
+  const {error}=await sb.storage.from("media").upload(path,blob,{contentType:"image/jpeg",upsert:false});if(error)throw error;return path}
+function err(id,t){const m=$(id);m.textContent=t||"";m.hidden=!t}
+
+async function saveEvent(e){e.preventDefault();err("ev-err");
+  const row={title:$("ev-title").value.trim(),category:$("ev-cat").value,points:parseInt($("ev-pts").value,10),event_date:$("ev-date").value||null,min_level:+$("ev-lvl").value,place:$("ev-place").value.trim(),description:$("ev-desc").value.trim()};
+  if(!row.title)return err("ev-err","Scrie denumirea evenimentului.");
+  if(!(row.points>0))return err("ev-err","Punctele trebuie să fie un număr mai mare de 0.");
+  $("ev-submit").disabled=true;
+  try{
+    if(evFile)row.image_path=await upload(evFile,"events");
+    const r=evEdit?await sb.from("events").update(row).eq("id",evEdit):await sb.from("events").insert({...row,created_by:me.id});
+    if(r.error)throw r.error;
+    toast(evEdit?"Eveniment actualizat":"Eveniment publicat: "+row.title);resetEv();await loadEvents();renderAll();
+  }catch(x){err("ev-err",errMsg(x))}finally{$("ev-submit").disabled=false}
+}
+function resetEv(){evEdit=null;evFile=null;$("ev-form").reset();$("ev-pts").value=20;preview("ev-prev");$("ev-form-title").textContent="Adaugă un eveniment";$("ev-submit").textContent="Publică evenimentul";$("ev-cancel").hidden=true;err("ev-err")}
+function editEv(ev){evEdit=ev.id;evFile=null;$("ev-title").value=ev.title;$("ev-cat").value=ev.category;$("ev-pts").value=ev.points;$("ev-date").value=ev.event_date||"";$("ev-lvl").value=ev.min_level;$("ev-place").value=ev.place;$("ev-desc").value=ev.description;$("ev-img").value="";preview("ev-prev",null,imgUrl(ev.image_path));$("ev-form-title").textContent="Editează evenimentul";$("ev-submit").textContent="Salvează modificările";$("ev-cancel").hidden=false;$("ev-form").scrollIntoView({behavior:"smooth"})}
+function thumb(o){return o.image_path?`<img alt="" loading="lazy" src="${esc(imgUrl(o.image_path))}">`:esc((o.category||o.type||"?")[0])}
+function renderEvList(){
+  const count={};registry.forEach(t=>{if(t.kind==="earn"&&t.event_id)count[t.event_id]=(count[t.event_id]||0)+1});
+  const box=$("ev-list");box.innerHTML=events.length?"":'<div class="empty">Niciun eveniment. Adaugă primul din formular.</div>';
+  events.forEach(ev=>{const el=document.createElement("div");el.className="li"+(ev.active?"":" off");
+    el.innerHTML=`<div class="thumb">${thumb(ev)}</div><div><strong>${esc(ev.title)}</strong><span>${esc([ev.category,fmtDate(ev.event_date),"+"+ev.points+" puncte",(count[ev.id]||0)+" participanți",ev.active?"":"arhivat"].filter(Boolean).join(", "))}</span></div><div class="acts"><button class="btn ghost" type="button" data-a="edit">Editează</button><button class="btn ${ev.active?"danger":"ghost"}" type="button" data-a="arch">${ev.active?"Arhivează":"Reactivează"}</button></div>`;
+    el.querySelector('[data-a="edit"]').onclick=()=>editEv(ev);
+    el.querySelector('[data-a="arch"]').onclick=async()=>{const {error}=await sb.from("events").update({active:!ev.active}).eq("id",ev.id);if(error)return toast(errMsg(error));await loadEvents();renderAll()};
+    box.appendChild(el)});
+}
+
+async function saveReward(e){e.preventDefault();err("rw-err");
+  const row={title:$("rw-title").value.trim(),type:$("rw-type").value,cost:parseInt($("rw-cost").value,10),stock:parseInt($("rw-stock").value,10),min_level:+$("rw-lvl").value,description:$("rw-desc").value.trim()};
+  if(!row.title)return err("rw-err","Scrie denumirea premiului.");
+  if(!(row.cost>0))return err("rw-err","Costul trebuie să fie un număr mai mare de 0.");
+  if(!(row.stock>=0))return err("rw-err","Stocul nu poate fi negativ.");
+  $("rw-submit").disabled=true;
+  try{
+    if(rwFile)row.image_path=await upload(rwFile,"rewards");
+    const r=rwEdit?await sb.from("rewards").update(row).eq("id",rwEdit):await sb.from("rewards").insert({...row,created_by:me.id});
+    if(r.error)throw r.error;
+    toast(rwEdit?"Premiu actualizat":"Premiu adăugat: "+row.title);resetRw();await loadRewards();renderAll();
+  }catch(x){err("rw-err",errMsg(x))}finally{$("rw-submit").disabled=false}
+}
+function resetRw(){rwEdit=null;rwFile=null;$("rw-form").reset();$("rw-cost").value=50;$("rw-stock").value=20;preview("rw-prev");$("rw-form-title").textContent="Adaugă un premiu";$("rw-submit").textContent="Adaugă premiul";$("rw-cancel").hidden=true;err("rw-err")}
+function editRw(r){rwEdit=r.id;rwFile=null;$("rw-title").value=r.title;$("rw-type").value=r.type;$("rw-cost").value=r.cost;$("rw-stock").value=r.stock;$("rw-lvl").value=r.min_level;$("rw-desc").value=r.description;$("rw-img").value="";preview("rw-prev",null,imgUrl(r.image_path));$("rw-form-title").textContent="Editează premiul";$("rw-submit").textContent="Salvează modificările";$("rw-cancel").hidden=false;$("rw-form").scrollIntoView({behavior:"smooth"})}
+function renderRwList(){
+  const count={};registry.forEach(t=>{if(t.kind==="redeem"&&t.status==="used"&&t.reward_id)count[t.reward_id]=(count[t.reward_id]||0)+1});
+  const box=$("rw-list");box.innerHTML=rewards.length?"":'<div class="empty">Niciun premiu. Adaugă primul din formular.</div>';
+  rewards.forEach(r=>{const el=document.createElement("div");el.className="li"+(r.active?"":" off");
+    el.innerHTML=`<div class="thumb">${thumb(r)}</div><div><strong>${esc(r.title)}</strong><span>${esc([r.type,r.cost+" puncte","nivel "+LEVELS[r.min_level].name,(count[r.id]||0)+" predate",r.active?"":"arhivat"].filter(Boolean).join(", "))}</span></div><div class="acts"><div class="stock"><button type="button" aria-label="Scade stocul" data-a="dec">−</button><b>${r.stock}</b><button type="button" aria-label="Crește stocul" data-a="inc">+</button></div><button class="btn ghost" type="button" data-a="edit">Editează</button><button class="btn ${r.active?"danger":"ghost"}" type="button" data-a="arch">${r.active?"Arhivează":"Reactivează"}</button></div>`;
+    const upd=async f=>{const {error}=await sb.from("rewards").update(f).eq("id",r.id);if(error)return toast(errMsg(error));await loadRewards();renderAll()};
+    el.querySelector('[data-a="dec"]').onclick=()=>r.stock>0&&upd({stock:r.stock-1});
+    el.querySelector('[data-a="inc"]').onclick=()=>upd({stock:r.stock+1});
+    el.querySelector('[data-a="edit"]').onclick=()=>editRw(r);
+    el.querySelector('[data-a="arch"]').onclick=()=>upd({active:!r.active});
+    box.appendChild(el)});
+}
+
+/* ---------- Studenți ---------- */
+$("st-q").oninput=()=>renderStudents();
+function renderStudents(){
+  const q=$("st-q").value.toLowerCase();
+  const rows=students.filter(s=>(fullName(s)+" "+s.card_no+" "+s.faculty).toLowerCase().includes(q));
+  const admin=me.role==="admin",roles={student:"Student",staff:"Angajat",admin:"Administrator"};
+  $("st-body").innerHTML=rows.map(s=>`<tr><td><strong>${esc(fullName(s))}</strong></td><td>${esc(s.card_no)}</td><td>${esc([s.faculty,s.study_year].filter(Boolean).join(", "))}</td><td class="num plus">${s.earned}</td><td class="num minus">${s.spent}</td><td class="num">${s.earned-s.spent-s.reserved}</td><td>${s.rewards_taken}</td><td>${admin?`<select data-role="${s.id}">${Object.keys(roles).map(k=>`<option value="${k}"${k===s.role?" selected":""}>${roles[k]}</option>`).join("")}</select>`:roles[s.role]}</td><td><button class="btn ghost" type="button" data-hist="${esc(s.card_no)}">Istoric</button></td></tr>`).join("")||'<tr><td colspan="9">Niciun rezultat.</td></tr>';
+  document.querySelectorAll("[data-hist]").forEach(b=>b.onclick=()=>{tab="log";$("lg-q").value=b.dataset.hist;renderAll()});
+  document.querySelectorAll("[data-role]").forEach(sel=>sel.onchange=async()=>{
+    const s=students.find(x=>x.id===sel.dataset.role);
+    if(!confirm(`Schimbi rolul pentru ${fullName(s)}?`)){sel.value=s.role;return}
+    const {error}=await sb.rpc("set_role",{p_user:s.id,p_role:sel.value});
+    if(error){toast(errMsg(error));sel.value=s.role;return}
+    toast("Rol actualizat");await loadStudents();renderAll()});
+}
+
+/* ---------- Registru ---------- */
+const OPN=t=>t.kind==="earn"?"Puncte acordate":t.status==="used"?"Premiu ridicat":t.status==="cancelled"?"Cod anulat":"Cod generat, neridicat";
+function filtered(){
+  const q=$("lg-q").value.toLowerCase(),ty=$("lg-type").value;
+  return registry.filter(t=>{
+    if(ty==="earn"&&t.kind!=="earn")return false;
+    if(ty!=="all"&&ty!=="earn"&&!(t.kind==="redeem"&&t.status===ty))return false;
+    return (fullName(t)+" "+t.card_no+" "+t.title+" "+(t.code||"")+" "+(t.operator||"")+" "+t.faculty).toLowerCase().includes(q)});
+}
+function renderLog(){
+  const rows=filtered();
+  $("lg-body").innerHTML=rows.map(t=>{const pts=t.kind==="earn"?`<td class="num plus">+${t.points}</td>`:t.status==="used"?`<td class="num minus">−${t.points}</td>`:`<td class="num">${t.points}${t.status==="pending"?" rezervate":""}</td>`;
+    return `<tr><td>${fmt(t.used_at||t.created_at)}</td><td><strong>${esc(fullName(t))}</strong></td><td>${esc(t.card_no)}</td><td>${esc(t.faculty)}</td><td>${OPN(t)}</td><td>${esc(t.title)}${t.code?`<br><span class="small-muted">${esc(t.code)}</span>`:""}</td>${pts}<td>${esc(t.operator||"–")}</td></tr>`}).join("")||'<tr><td colspan="8">Nicio operațiune găsită.</td></tr>';
+  $("lg-count").textContent=rows.length+(rows.length===1?" operațiune afișată":" operațiuni afișate")+(registry.length>=3000?" (ultimele 3000; restrânge perioada pentru mai vechi)":"");
+}
+$("lg-q").oninput=renderLog;$("lg-type").onchange=renderLog;
+$("lg-from").onchange=$("lg-to").onchange=async()=>{await loadRegistry();renderLog()};
+$("lg-csv").onclick=()=>{
+  const rows=filtered(),cell=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const head=["Data și ora","Nume","Prenume","Card","Facultatea","Anul","Operațiunea","Detalii","Cod","Puncte","Operator"];
+  const lines=[head.map(cell).join(";")].concat(rows.map(t=>[fmt(t.used_at||t.created_at),t.last_name,t.first_name,t.card_no,t.faculty,t.study_year,OPN(t),t.title,t.code||"",(t.kind==="earn"?"+":t.status==="used"?"-":"")+t.points,t.operator||""].map(cell).join(";")));
+  const blob=new Blob(["\ufeff"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cardup-registru-"+new Date().toISOString().slice(0,10)+".csv";document.body.appendChild(a);a.click();a.remove();
+};
+})();
+</script>
+</body>
+</html>

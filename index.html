@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CardUP — cardul studenților UPSC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="config.js"></script>
+<script src="shared.js"></script>
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <div class="brand"><picture><source srcset="logo-upsc-white.png" media="(prefers-color-scheme: dark)"><img src="logo-upsc-navy.png" alt="Universitatea Pedagogică de Stat „Ion Creangă” din Chișinău"></picture><span class="sep" aria-hidden="true"></span><span>Card<b>UP</b></span></div>
+  <button class="btn ghost" id="logout" type="button" hidden>Ieșire</button>
+</div></div>
+
+<!-- Autentificare -->
+<div id="v-auth" hidden>
+  <div class="auth">
+    <div class="auth-logo"><picture><source srcset="logo-upsc-white.png" media="(prefers-color-scheme: dark)"><img src="logo-upsc-navy.png" alt="Universitatea Pedagogică de Stat „Ion Creangă” din Chișinău"></picture></div>
+    <h1>Cardul tău de student UPSC</h1>
+    <p class="lede">Adună puncte la activitățile universității și schimbă-le pe produse UPSC sau pe oportunități.</p>
+    <div class="panel">
+      <div class="chips" style="margin-bottom:18px" id="auth-tabs">
+        <button class="chip" type="button" data-t="in" aria-pressed="true">Autentificare</button>
+        <button class="chip" type="button" data-t="up" aria-pressed="false">Cont nou</button>
+      </div>
+      <p class="msg" id="auth-msg" hidden></p>
+      <form id="f-in">
+        <div class="field"><label for="in-email">Email</label><input id="in-email" type="email" required autocomplete="email"></div>
+        <div class="field"><label for="in-pass">Parola</label><input id="in-pass" type="password" required autocomplete="current-password"></div>
+        <button class="btn big" type="submit">Intră în cont</button>
+        <p style="margin:14px 0 0"><button class="linkbtn" type="button" id="forgot">Am uitat parola</button></p>
+      </form>
+      <form id="f-up" hidden>
+        <div class="row">
+          <div class="field"><label for="up-last">Numele</label><input id="up-last" required maxlength="60" autocomplete="family-name"></div>
+          <div class="field"><label for="up-first">Prenumele</label><input id="up-first" required maxlength="60" autocomplete="given-name"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label for="up-fac">Facultatea sau specialitatea</label><input id="up-fac" required maxlength="100"></div>
+          <div class="field"><label for="up-year">Anul de studii</label><select id="up-year"><option>Anul I</option><option>Anul II</option><option>Anul III</option><option>Anul IV</option><option>Master</option></select></div>
+        </div>
+        <div class="field"><label for="up-email">Email</label><input id="up-email" type="email" required autocomplete="email"></div>
+        <div class="field"><label for="up-pass">Parola (minimum 8 caractere)</label><input id="up-pass" type="password" required minlength="8" autocomplete="new-password"></div>
+        <label class="small-muted" style="display:flex;gap:8px;align-items:flex-start;margin-bottom:14px"><input type="checkbox" id="up-gdpr" required style="margin-top:4px"> Sunt de acord ca UPS „Ion Creangă” să prelucreze datele mele (nume, facultate, email, activități) pentru programul CardUP.</label>
+        <button class="btn big" type="submit">Creează cardul</button>
+      </form>
+      <form id="f-new" hidden>
+        <div class="field"><label for="new-pass">Parola nouă (minimum 8 caractere)</label><input id="new-pass" type="password" required minlength="8" autocomplete="new-password"></div>
+        <button class="btn big" type="submit">Salvează parola</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Aplicația -->
+<div id="v-app" hidden>
+<header class="hero"><div class="wrap hero-grid">
+  <div>
+    <h1 id="hello">Bună!</h1>
+    <p class="lede">Arată codul QR de pe card organizatorului la fiecare activitate, iar punctele intră automat. Când ai destule, alege un premiu de mai jos.</p>
+    <details class="panel" id="profile-box">
+      <summary>Editează cardul</summary>
+      <div class="row">
+        <div class="field"><label for="p-last">Numele</label><input id="p-last" maxlength="60"></div>
+        <div class="field"><label for="p-first">Prenumele</label><input id="p-first" maxlength="60"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="p-fac">Facultatea</label><input id="p-fac" maxlength="100"></div>
+        <div class="field"><label for="p-year">Anul</label><select id="p-year"><option>Anul I</option><option>Anul II</option><option>Anul III</option><option>Anul IV</option><option>Master</option></select></div>
+      </div>
+      <div class="field"><span class="lbl" id="sw-lbl">Culoarea cardului</span><div class="swatches" role="group" aria-labelledby="sw-lbl" id="swatches"></div></div>
+      <div class="field" style="margin-bottom:0"><span class="lbl" id="int-lbl">Ce te interesează?</span><div class="chips" role="group" aria-labelledby="int-lbl" id="interests"></div></div>
+    </details>
+  </div>
+  <div class="stage">
+    <div class="card" id="card">
+      <div class="card-top"><div class="card-logo"><img src="mark-upsc-white.png" alt=""><div>CardUP<small>UPS „Ion Creangă”</small></div></div><div class="level-pill" id="c-level">Start</div></div>
+      <div class="balance" id="c-balance">0<small>puncte</small></div>
+      <div class="card-bottom">
+        <div><div class="card-name" id="c-name"></div><div class="card-meta" id="c-meta"></div></div>
+        <button class="qr" id="qr" type="button" aria-label="Mărește codul QR al cardului"></button>
+      </div>
+    </div>
+    <div class="points-line">
+      <div class="bar"><i id="bar"></i></div>
+      <div class="points-txt"><span id="earned"></span><span id="next"></span></div>
+      <div class="small-muted" id="reserved"></div>
+    </div>
+  </div>
+</div></header>
+<main>
+  <section class="block"><div class="wrap">
+    <h2>Evenimente cu puncte</h2>
+    <p class="intro">Participă și arată cardul organizatorului. Punctele apar pe card imediat după scanare.</p>
+    <div class="filters chips" id="filters"></div>
+    <div class="grid" id="events"></div>
+  </div></section>
+  <section class="block"><div class="wrap">
+    <h2>Premii</h2>
+    <p class="intro">Alege un premiu și primești un cod. Arată codul la Direcția Studenți și Servicii Sociale: după scanare, punctele se retrag și primești premiul.</p>
+    <div class="filters chips" id="tabs"></div>
+    <div class="grid" id="rewards"></div>
+  </div></section>
+  <section class="block"><div class="wrap">
+    <h2>Istoricul meu</h2>
+    <p class="intro">Toate punctele primite și premiile alese.</p>
+    <div class="orders" id="hist"></div>
+  </div></section>
+</main>
+</div>
+
+<dialog id="dlg"><div class="vch" id="dlg-body"></div></dialog>
+
+<script>
+(function(){
+if(!window.CU)return;
+const {sb,LEVELS,CATS,THEMES,esc,puncte,levelOf,fmt,fmtDate,toast,errMsg,qrSvg,imgUrl}=CU;
+const $=id=>document.getElementById(id);
+let user=null,profile=null,ov=null,events=[],rewards=[],txs=[],channel=null,openTx=null;
+const ui={filter:"Toate",tab:"Toate"};
+
+/* ---------- Autentificare ---------- */
+function show(view){$("v-auth").hidden=view!=="auth";$("v-app").hidden=view!=="app";$("logout").hidden=view!=="app"}
+function authMsg(t,kind){const m=$("auth-msg");m.textContent=t||"";m.className="msg "+(kind||"bad");m.hidden=!t}
+function authTab(t){document.querySelectorAll("#auth-tabs .chip").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===t));$("f-in").hidden=t!=="in";$("f-up").hidden=t!=="up";$("f-new").hidden=t!=="new";$("auth-tabs").hidden=t==="new";authMsg("")}
+document.querySelectorAll("#auth-tabs .chip").forEach(b=>b.onclick=()=>authTab(b.dataset.t));
+
+$("f-in").onsubmit=async e=>{e.preventDefault();authMsg("");
+  const {error}=await sb.auth.signInWithPassword({email:$("in-email").value.trim(),password:$("in-pass").value});
+  if(error)authMsg(errMsg(error));
+};
+$("f-up").onsubmit=async e=>{e.preventDefault();authMsg("");
+  if(!$("up-gdpr").checked){authMsg("Bifează acordul pentru prelucrarea datelor.");return}
+  const {data,error}=await sb.auth.signUp({email:$("up-email").value.trim(),password:$("up-pass").value,
+    options:{emailRedirectTo:location.origin+location.pathname,data:{first_name:$("up-first").value.trim(),last_name:$("up-last").value.trim(),faculty:$("up-fac").value.trim(),study_year:$("up-year").value}}});
+  if(error){authMsg(errMsg(error));return}
+  if(!data.session){authTab("in");authMsg("Contul a fost creat. Deschide emailul de confirmare, apoi intră în cont.","ok")}
+};
+$("forgot").onclick=async()=>{const email=$("in-email").value.trim();
+  if(!email){authMsg("Scrie mai întâi adresa de email.");return}
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  authMsg(error?errMsg(error):"Ți-am trimis un email cu linkul pentru parola nouă.",error?"bad":"ok");
+};
+$("f-new").onsubmit=async e=>{e.preventDefault();
+  const {error}=await sb.auth.updateUser({password:$("new-pass").value});
+  if(error){authMsg(errMsg(error));return}
+  toast("Parola a fost schimbată");start();
+};
+$("logout").onclick=async()=>{await sb.auth.signOut()};
+
+sb.auth.onAuthStateChange((ev,session)=>{
+  if(ev==="PASSWORD_RECOVERY"){show("auth");authTab("new");return}
+  if(ev==="SIGNED_OUT"){user=null;if(channel){sb.removeChannel(channel);channel=null}show("auth");authTab("in");return}
+  if(ev==="SIGNED_IN"&&session&&(!user||user.id!==session.user.id)){user=session.user;start()}
+});
+(async()=>{const {data}=await sb.auth.getSession();if(user)return;if(data.session){user=data.session.user;start()}else{show("auth");authTab("in")}})();
+
+/* ---------- Date ---------- */
+async function start(){
+  show("app");
+  await Promise.all([loadProfile(),loadCatalog(),loadMine()]);
+  renderProfile();renderAll();subscribe();
+}
+async function loadProfile(){const r=await sb.from("profiles").select("*").eq("id",user.id).single();if(r.error){toast(errMsg(r.error));return}profile=r.data;if(!profile.interests||!profile.interests.length)profile.interests=CATS.slice()}
+async function loadCatalog(){
+  const [e,r]=await Promise.all([
+    sb.from("events").select("*").eq("active",true).order("event_date",{ascending:true,nullsFirst:false}),
+    sb.from("rewards").select("*").eq("active",true).order("cost")]);
+  if(e.error||r.error){toast(errMsg(e.error||r.error));return}
+  events=e.data;rewards=r.data;
+}
+async function loadMine(){
+  const [o,t]=await Promise.all([
+    sb.from("student_overview").select("*").eq("id",user.id).single(),
+    sb.from("transactions").select("*").eq("student_id",user.id).order("created_at",{ascending:false}).limit(300)]);
+  if(o.error||t.error){toast(errMsg(o.error||t.error));return}
+  ov=o.data;txs=t.data;
+}
+function subscribe(){
+  if(channel)sb.removeChannel(channel);
+  channel=sb.channel("me-"+user.id).on("postgres_changes",{event:"*",schema:"public",table:"transactions",filter:"student_id=eq."+user.id},async p=>{
+    await Promise.all([loadMine(),loadCatalog()]);renderAll();
+    if(p.eventType==="INSERT"&&p.new.kind==="earn")toast("+"+puncte(p.new.points)+": "+p.new.title);
+    if(p.eventType==="UPDATE"&&p.new.status==="used"&&openTx===p.new.id)voucherDone(p.new);
+  }).subscribe();
+}
+function balance(){return ov?ov.earned-ov.spent-ov.reserved:0}
+
+/* ---------- Profil ---------- */
+let saveTimer;
+function saveProfile(fields){Object.assign(profile,fields);renderCard();clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{const {error}=await sb.from("profiles").update({first_name:profile.first_name,last_name:profile.last_name,faculty:profile.faculty,study_year:profile.study_year,theme:profile.theme,interests:profile.interests}).eq("id",user.id);if(error)toast(errMsg(error))},600)}
+function renderProfile(){
+  $("p-first").value=profile.first_name;$("p-last").value=profile.last_name;$("p-fac").value=profile.faculty;$("p-year").value=profile.study_year;
+  const w=$("swatches");w.innerHTML="";THEMES.forEach(t=>{const b=document.createElement("button");b.type="button";b.className="sw";b.style.background=`linear-gradient(135deg,${t.c2},${t.c1})`;b.setAttribute("aria-label",t.label);b.setAttribute("aria-pressed",profile.theme===t.id);b.onclick=()=>{saveProfile({theme:t.id});renderProfile()};w.appendChild(b)});
+  const iw=$("interests");iw.innerHTML="";CATS.forEach(c=>{const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=c;b.setAttribute("aria-pressed",profile.interests.includes(c));b.onclick=()=>{const i=profile.interests.slice(),k=i.indexOf(c);k>-1?i.splice(k,1):i.push(c);if(ui.filter!=="Toate"&&!i.includes(ui.filter))ui.filter="Toate";saveProfile({interests:i});renderProfile();renderEvents()};iw.appendChild(b)});
+}
+$("p-first").oninput=e=>saveProfile({first_name:e.target.value});
+$("p-last").oninput=e=>saveProfile({last_name:e.target.value});
+$("p-fac").oninput=e=>saveProfile({faculty:e.target.value});
+$("p-year").onchange=e=>saveProfile({study_year:e.target.value});
+
+/* ---------- Afișare ---------- */
+function renderAll(){renderCard();renderEvents();renderRewards();renderHist()}
+function renderCard(){
+  if(!profile)return;
+  const th=THEMES.find(t=>t.id===profile.theme)||THEMES[0],c=$("card");
+  c.style.setProperty("--c1",th.c1);c.style.setProperty("--c2",th.c2);c.style.setProperty("--fg",th.fg);c.dataset.theme=th.id;
+  $("hello").textContent="Bună, "+(profile.first_name||"student")+"!";
+  $("c-name").textContent=((profile.last_name||"")+" "+(profile.first_name||"")).trim()||"Numele tău";
+  $("c-meta").textContent=[profile.faculty,profile.study_year,profile.card_no].filter(Boolean).join(", ");
+  $("qr").innerHTML=qrSvg(profile.card_no);
+  if(!ov)return;
+  const b=balance(),e=ov.earned,li=levelOf(e);
+  $("c-balance").innerHTML=b+"<small>"+(b===1?"punct":"puncte")+"</small>";
+  $("c-level").textContent=LEVELS[li].name;
+  $("earned").textContent=puncte(e)+" câștigate în total";
+  if(li<3){const nx=LEVELS[li+1],cur=LEVELS[li];$("next").textContent=(nx.min-e)+" până la "+nx.name;$("bar").style.width=Math.min(100,(e-cur.min)/(nx.min-cur.min)*100)+"%"}else{$("next").textContent="Nivel maxim";$("bar").style.width="100%"}
+  $("reserved").textContent=ov.reserved?puncte(ov.reserved)+" rezervate pentru coduri neridicate":"";
+}
+function chipRow(el,items,active,pick){el.innerHTML="";items.forEach(v=>{const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=v;b.setAttribute("aria-pressed",active===v);b.onclick=()=>pick(v);el.appendChild(b)})}
+function pic(o){return o.image_path?`<img alt="" loading="lazy" src="${esc(imgUrl(o.image_path))}">`:esc((o.category||o.type||"?")[0])}
+function renderEvents(){
+  chipRow($("filters"),["Toate"].concat(profile.interests),ui.filter,v=>{ui.filter=v;renderEvents()});
+  const done=new Set(txs.filter(t=>t.kind==="earn").map(t=>t.event_id)),li=levelOf(ov?ov.earned:0);
+  const list=events.filter(e=>profile.interests.includes(e.category)&&(ui.filter==="Toate"||e.category===ui.filter));
+  const box=$("events");
+  if(!list.length){box.innerHTML='<div class="empty">Nu sunt evenimente pentru interesele alese. Adaugă mai multe interese din „Editează cardul”.</div>';return}
+  box.innerHTML=list.map(e=>{
+    const got=done.has(e.id),locked=e.min_level>li;
+    const foot=got?'<span class="btn done">Puncte primite</span>':locked?`<span class="lockmsg">De la nivelul ${LEVELS[e.min_level].name}</span>`:'<span class="small-muted">Arată cardul la eveniment</span>';
+    return `<article class="item${locked?" locked":""}"><div class="pic">${pic(e)}</div><div class="body"><div class="cat">${esc(e.category)}</div><h3>${esc(e.title)}</h3><div class="when">${esc([fmtDate(e.event_date),e.place].filter(Boolean).join(", "))}</div><p>${esc(e.description)}</p><div class="foot"><span class="pts">+${puncte(e.points)}</span>${foot}</div></div></article>`}).join("");
+}
+function renderRewards(){
+  chipRow($("tabs"),["Toate","Produse UPSC","Oportunități"],ui.tab,v=>{ui.tab=v;renderRewards()});
+  const bal=balance(),li=levelOf(ov?ov.earned:0),box=$("rewards");
+  const list=rewards.filter(r=>ui.tab==="Toate"||r.type===ui.tab);
+  if(!list.length){box.innerHTML='<div class="empty">Nu sunt premii în această categorie deocamdată.</div>';return}
+  box.innerHTML="";
+  list.forEach(r=>{
+    const el=document.createElement("article");el.className="item";
+    el.innerHTML=`<div class="pic">${pic(r)}</div><div class="body"><div class="cat">${esc(r.type)}</div><h3>${esc(r.title)}</h3><p>${esc(r.description)}</p><div class="when">${r.stock>0?r.stock+" în stoc":"Stoc epuizat"}</div><div class="foot"><div class="cost">${r.cost} <small>puncte</small></div></div></div>`;
+    const f=el.querySelector(".foot");
+    if(r.min_level>li){f.insertAdjacentHTML("beforeend",`<span class="lockmsg">De la nivelul ${LEVELS[r.min_level].name}</span>`)}
+    else{const b=document.createElement("button");b.type="button";b.className="btn sun";b.textContent="Schimbă pe puncte";
+      if(r.stock<=0){b.disabled=true;b.textContent="Indisponibil"}else if(bal<r.cost){b.disabled=true;b.textContent="Mai ai nevoie de "+(r.cost-bal)}
+      else b.onclick=()=>reserve(r,b);f.appendChild(b)}
+    box.appendChild(el);
+  });
+}
+function renderHist(){
+  const box=$("hist");
+  if(!txs.length){box.innerHTML='<div class="empty">Încă nu ai nicio operațiune. Participă la un eveniment și arată cardul ca să primești primele puncte.</div>';return}
+  box.innerHTML="";
+  txs.forEach(t=>{
+    const el=document.createElement("div");el.className="order";
+    const st=t.kind==="earn"?`<span class="status earn">+${t.points}</span>`:t.status==="used"?`<span class="status used">Ridicat, −${t.points}</span>`:t.status==="cancelled"?'<span class="status cancelled">Anulat</span>':'<span class="status pending">De ridicat</span>';
+    el.innerHTML=`<div><strong>${esc(t.title)}</strong><span>${fmt(t.used_at||t.created_at)}${t.code?", cod "+esc(t.code):""}</span></div><div class="acts">${st}</div>`;
+    if(t.kind==="redeem"&&t.status==="pending"){const b=document.createElement("button");b.type="button";b.className="btn ghost";b.textContent="Arată codul";b.onclick=()=>voucher(t);el.querySelector(".acts").appendChild(b)}
+    box.appendChild(el);
+  });
+}
+
+/* ---------- Premii ---------- */
+async function reserve(r,btn){
+  if(!confirm(`Schimbi ${r.cost} puncte pe „${r.title}”? Punctele se rezervă până ridici premiul.`))return;
+  btn.disabled=true;
+  const {data,error}=await sb.rpc("reserve_reward",{p_reward:r.id});
+  if(error){toast(errMsg(error));btn.disabled=false;return}
+  await Promise.all([loadMine(),loadCatalog()]);renderAll();voucher(data);
+}
+const dlg=$("dlg");
+function voucher(t){
+  openTx=t.id;
+  $("dlg-body").innerHTML=`<h3>Codul tău de ridicare</h3><p class="sub">${esc(t.title)}, ${puncte(t.points)}</p><div class="vqr">${qrSvg(t.code)}</div><div class="vcode">${esc(t.code)}</div><p class="vnote">Arată acest cod la Direcția Studenți și Servicii Sociale. După scanare, punctele se retrag și primești premiul.</p><div class="vact"><button class="btn" type="button" id="d-close">Închide</button><button class="btn danger" type="button" id="d-cancel">Anulează și recuperează punctele</button></div>`;
+  $("d-close").onclick=closeDlg;
+  $("d-cancel").onclick=async()=>{if(!confirm("Anulezi codul? Punctele revin pe card."))return;const {error}=await sb.rpc("cancel_reservation",{p_tx:t.id});if(error){toast(errMsg(error));return}closeDlg();await Promise.all([loadMine(),loadCatalog()]);renderAll();toast("Cod anulat, punctele au revenit")};
+  dlg.showModal();
+}
+function voucherDone(t){
+  $("dlg-body").innerHTML=`<div class="tick" aria-hidden="true">✓</div><h3>Premiu ridicat</h3><p class="sub">${esc(t.title)}. S-au retras ${puncte(t.points)}. Sold nou: ${puncte(balance())}.</p><div class="vact"><button class="btn" type="button" id="d-close">Gata</button></div>`;
+  $("d-close").onclick=closeDlg;
+}
+function closeDlg(){openTx=null;dlg.close()}
+dlg.addEventListener("close",()=>{openTx=null});
+$("qr").onclick=()=>{openTx=null;$("dlg-body").innerHTML=`<h3>Cardul tău</h3><p class="sub">${esc(profile.card_no)}</p><div class="vqr">${qrSvg(profile.card_no)}</div><p class="vnote">Arată acest cod organizatorului ca să primești punctele pentru eveniment.</p><div class="vact"><button class="btn" type="button" id="d-close">Închide</button></div>`;$("d-close").onclick=closeDlg;dlg.showModal()};
+})();
+</script>
+</body>
+</html>
